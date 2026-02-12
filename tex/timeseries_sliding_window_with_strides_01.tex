@@ -139,11 +139,11 @@
             (4, 3.4) -- (7, 3.4);
         \node[above=4pt] at (5.5, 3.4) {$ H $};
         % 标签：每一帧标注 X_i 和 Y_i（分别在左/右侧，带白色背景防止与网格混淆）
-        \node[left=4pt, yshift=-4px, fill=white, inner sep=1.5pt]  at (0.0, 1.5) {$ \mathbf{x}_{3} \in \mathbb{R}^{L\times D} $};
-        \node[right=4pt, yshift=4px, fill=white, inner sep=1.5pt] at (7, 1.5) {$ \mathbf{y}_{3} \in \mathbb{R}^{H\times D} $};
+        \node[left=4pt, yshift=-4px, fill=white, inner sep=1.5pt]  at (0.0, 1.5) {$ \mathbf{x}_{2} \in \mathbb{R}^{L\times D} $};
+        \node[right=4pt, yshift=4px, fill=white, inner sep=1.5pt] at (7, 1.5) {$ \mathbf{y}_{2} \in \mathbb{R}^{H\times D} $};
     \end{scope}
     % 画布右下角的用户自定义文字
     % 使用锚点 south east，使文字的右下角贴近画布边缘
-    \node[anchor=south east] at (19.5,0.5) {Sampling with non-stride};
+    \node[anchor=south east] at (19.5,0.5) {Sampling with stride = 1};
 \end{tikzpicture}
 \end{document}

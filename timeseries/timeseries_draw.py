@@ -10,7 +10,7 @@
 
 使用时请在仓库根目录下运行，例如：
 
-    python3 new/timeseries_draw.py all --compile-pdf --generate-gif
+    python3 timeseries/timeseries_draw.py all --compile-pdf --generate-gif
 """
 
 import argparse
@@ -54,17 +54,25 @@ def make_timeseries_tex_string(
     kernel_size: int,
     num_variables: int = 3,
     stride: int = 1,
+    canvas_footer_text: str = "",
 ) -> bytes:
-    """创建时间序列滑动窗口的 LaTeX 字符串（无 padding，支持 stride）。"""
+    """创建时间序列滑动窗口的 LaTeX 字符串（无 padding，支持 stride）。
+
+    参数
+    ----
+    canvas_footer_text:
+        画布右下角的说明文字（可以是任意 LaTeX 文本，默认不显示）。
+    """
     if stride <= 0:
         raise ValueError("stride 必须为正整数")
 
     L = input_length
     # 这里我们定义一对 (X, Y) 组合：
-    # - X_i: 从位置 x_start 到 x_start + kernel_size
-    # - Y_i: 紧接着的窗口，从 x_start + kernel_size 到 x_start + 2 * kernel_size
-    # 因此必须满足 x_start + 2 * kernel_size <= L
-    pair_steps = (L - 2 * kernel_size) // stride + 1
+    # - X_i: 从位置 x_start 到 x_start + (kernel_size + 1)（4 个格子）
+    # - Y_i: 紧接着的窗口，从 x_start + (kernel_size + 1) 到 x_start + (2 * kernel_size + 1)（3 个格子）
+    # 因此必须满足 x_start + (2 * kernel_size + 1) <= L
+    pair_span = 2 * kernel_size + 1  # X(4) + Y(3) 覆盖的总长度
+    pair_steps = (L - pair_span) // stride + 1
     if pair_steps <= 0:
         raise ValueError("input_length 与 kernel_size 组合无法形成任何 (X, Y) 对")
     if step < 0 or step >= pair_steps:
@@ -97,58 +105,76 @@ def make_timeseries_tex_string(
             )
     input_rects_str = "\n    ".join(input_rects)
 
-    # 输出层：每一帧只展示一个 (X, Y) 组合（两个与输入窗口同尺寸的块：X 在前/左，Y 在后/右）
-    output_rects = []
-    # X 块（宽 kernel_size，高 num_variables，绿色）
-    output_rects.append(
-        f"\\draw[draw=base03, fill=green, thick] (0,0) rectangle ({kernel_size},{output_height});"
-    )
-    # Y 块（紧接在 X 右侧，黄色）
-    output_rects.append(
-        f"\\draw[draw=base03, fill=yellow, thick] ({kernel_size},0) rectangle ({2*kernel_size},{output_height});"
-    )
-    output_rects_str = "\n        ".join(output_rects)
-
     # 当前步对应的 X/Y 窗口在输入上的起始位置
+    # X 覆盖 4 个格子，Y 覆盖 3 个格子
     x_window_from = step * stride
-    x_window_to = x_window_from + kernel_size
+    x_window_to = x_window_from + (kernel_size + 1)
     y_window_from = x_window_to
     y_window_to = y_window_from + kernel_size
 
     # 本帧的标签：x_1, y_1, x_2, y_2, ... 以及对应维度
     label_index = step + 1
-    # 顶层块：x_i \in \mathbb{R}^{T\times D}, y_i \in \mathbb{R}^{H\times D}
+    # 顶层块：x_i \in \mathbb{R}^{L\times D}, y_i \in \mathbb{R}^{H\times D}
     x_label = (
-        f"\\mathbf{{x}}_{{{label_index}}} \\in \\mathbb{{R}}^{{T\\times D}}"
+        f"\\mathbf{{x}}_{{{label_index}}} \\in \\mathbb{{R}}^{{L\\times D}}"
     )
     y_label = (
         f"\\mathbf{{y}}_{{{label_index}}} \\in \\mathbb{{R}}^{{H\\times D}}"
     )
 
-    # 输出层几何：两个与输入窗口同尺寸的块
-    output_x_from = 0
-    output_x_to = kernel_size
-    output_y_from = kernel_size
-    output_y_to = 2 * kernel_size
-    label_x_center = kernel_size / 2
-    label_y_center = kernel_size + kernel_size / 2
+    # 输出层几何：上层 X 占 4 个完整格子，Y 占 3 个完整格子
+    # 对应 kernel_size=3 时：X: 0..4, Y: 4..7
+    output_x_from = 0.0
+    output_x_to = kernel_size + 1  # 4 个格子
+    output_y_from = output_x_to
+    output_y_to = output_y_from + kernel_size  # 再加 3 个格子
+    label_x_center = (output_x_from + output_x_to) / 2.0
+    label_y_center = (output_y_from + output_y_to) / 2.0
+
+    # 顶部 L / H 括号中心与纵向位置
+    l_brace_x = label_x_center
+    h_brace_x = label_y_center
+    top_brace_y = output_height + 0.4
+
+    # X / Y 标签位置：放在左右两侧中部
+    x_label_x = output_x_from
+    x_label_y = output_height / 2.0
+    y_label_x = output_y_to
+    y_label_y = output_height / 2.0
+
+    # 输出层：每一帧只展示一个 (X, Y) 组合（上层两个块：X 在前/左，Y 在后/右）
+    output_rects = []
+    # X 块（较长，对应 x_i \in \mathbb{R}^{T\times D}，绿色）
+    output_rects.append(
+        f"\\draw[draw=base03, fill=green, thick] ({output_x_from},0) rectangle ({output_x_to},{output_height});"
+    )
+    # Y 块（略短，对应 y_i \in \mathbb{R}^{H\times D}，黄色）
+    output_rects.append(
+        f"\\draw[draw=base03, fill=yellow, thick] ({output_y_from},0) rectangle ({output_y_to},{output_height});"
+    )
+    output_rects_str = "\n        ".join(output_rects)
 
     # 输入层标注：长为 T，宽为 D，\mathcal{V} \in \mathbb{R}^{T\times D}
+    # 让 D / T 的文字严格对齐各自大括号的“中点”位置
+    # T 方向括号：从 0 到 L，中心在 L/2
     t_label_x = L / 2.0
     t_label_y = -0.8
-    d_label_x = -0.8
+    # D 方向括号：沿 x=-0.3，从 0 到 num_variables，中心在 num_variables/2
+    d_label_x = -0.3
     d_label_y = num_variables / 2.0
-    v_label_x = L
-    v_label_y = num_variables + 0.3
+    v_label_x = L - 0.5
+    v_label_y = num_variables - 2
 
-    # 输入层中选取一个时间步 t 的位置，画箭头和 v_t \in \mathbb{R}^D
-    vt_center_x = x_window_from + kernel_size / 2.0
+    # 输入层中选取一个固定的时间步（靠右侧），画箭头和 v_t \in \mathbb{R}^D，
+    # 并把 v_t 的文字挪到右下方相对更空的区域
+    vt_center_x = L - 2.6
+    vt_label_x = vt_center_x - 0.2
+    vt_label_y = -1.5
+    # 让箭头与方块垂直：沿“竖直”（世界坐标 y 方向）从下往上指向该时间步
     vt_from_x = vt_center_x
-    vt_from_y = 0.0
+    vt_from_y = vt_label_y - 0.1
     vt_to_x = vt_center_x
-    vt_to_y = -0.4
-    vt_label_x = vt_center_x + 0.3
-    vt_label_y = -0.6
+    vt_to_y = 0.0
 
     # 输入层标签文本（用变量传给模板，以避免在模板中出现未转义花括号）
     v_label_text = r"\mathcal{V} \in \mathbb{R}^{T \times D}"
@@ -165,8 +191,8 @@ def make_timeseries_tex_string(
         Y_WINDOW_TO=y_window_to,
         X_LABEL=x_label,
         Y_LABEL=y_label,
-        # 输出层宽度固定为 2*kernel_size，仅展示一个 (X, Y)（两个块）
-        OUTPUT_LENGTH=2 * kernel_size,
+        # 输出层宽度固定为 X(4 格) + Y(3 格)，共 2*kernel_size+1 个格子
+        OUTPUT_LENGTH=2 * kernel_size + 1,
         OUTPUT_RECTS=output_rects_str,
         OUTPUT_HEIGHT=output_height,
         ROW_HEIGHT=row_height,
@@ -177,6 +203,13 @@ def make_timeseries_tex_string(
         OUTPUT_Y_TO=output_y_to,
         LABEL_X_CENTER=label_x_center,
         LABEL_Y_CENTER=label_y_center,
+        L_BRACE_X=l_brace_x,
+        H_BRACE_X=h_brace_x,
+        TOP_BRACE_Y=top_brace_y,
+        X_LABEL_X=x_label_x,
+        X_LABEL_Y=x_label_y,
+        Y_LABEL_X=y_label_x,
+        Y_LABEL_Y=y_label_y,
         T_LABEL_X=t_label_x,
         T_LABEL_Y=t_label_y,
         D_LABEL_X=d_label_x,
@@ -191,10 +224,13 @@ def make_timeseries_tex_string(
         VT_LABEL_Y=vt_label_y,
         V_LABEL_TEXT=v_label_text,
         VT_LABEL_TEXT=vt_label_text,
+        CANVAS_FOOTER_TEXT=canvas_footer_text,
         # 高亮整对 (X, Y) 两个块
         OUTPUT_HIGHLIGHT=0,
-        OUTPUT_HIGHLIGHT_PLUS_1=2 * kernel_size,
-        OUTPUT_ELEVATION=f"{num_variables + 2}cm",
+        OUTPUT_HIGHLIGHT_PLUS_1=2 * kernel_size + 1,
+        # 上层整体相对下层的垂直/水平偏移（稍微再往上抬一点）
+        OUTPUT_ELEVATION=f"{num_variables + 3}cm",
+        OUTPUT_XSHIFT="2cm",
     ).encode("utf-8")
 
 
@@ -206,6 +242,7 @@ def compile_figure(
     num_variables: int = 3,
     stride: int = 1,
     compile_pdf: bool = False,
+    canvas_footer_text: str = "",
 ) -> bool:
     """生成单帧时间序列滑动窗口图（tex，必要时编译为 pdf）。"""
     tex_bytes = make_timeseries_tex_string(
@@ -214,6 +251,7 @@ def compile_figure(
         kernel_size=kernel_size,
         num_variables=num_variables,
         stride=stride,
+        canvas_footer_text=canvas_footer_text,
     )
 
     jobname = f"{name}_{step:02d}"
@@ -324,8 +362,10 @@ def generate_gif_for_animation(
     stride: int,
 ) -> Path:
     """根据已生成的 PDF 序列，为一个时间序列动画生成 GIF。"""
-    # 与 make_timeseries_tex_string 中的 pair_steps 保持一致
-    steps = (input_length - 2 * kernel_size) // stride + 1
+    # 与 make_timeseries_tex_string 中的 pair_steps 保持一致：
+    # X 覆盖 4 个格子，Y 覆盖 3 个格子，总长度为 2*kernel_size+1
+    pair_span = 2 * kernel_size + 1
+    steps = (input_length - pair_span) // stride + 1
 
     pdf_dir = Path("pdf")
     png_dir = Path("png")
@@ -350,17 +390,20 @@ def generate_gif_for_animation(
 # 预设的纯时序动画配置
 TIMESERIES_ANIMATIONS: Dict[str, Dict[str, int]] = {
     "timeseries_sliding_window": {
-        "input_length": 9,
+        "input_length": 18,
         "kernel_size": 3,
         "num_variables": 3,
         "stride": 1,
+        # 画布右下角的默认说明文字（可在 CLI 中覆盖）
+        "canvas_footer_text": "Sampling with non-stride",
     },
-    # "timeseries_sliding_window_strides": {
-    #     "input_length": 7,
-    #     "kernel_size": 3,
-    #     "num_variables": 3,
-    #     "stride": 2,
-    # },
+    "timeseries_sliding_window_with_strides": {
+        "input_length": 18,
+        "kernel_size": 3,
+        "num_variables": 3,
+        "stride": 2,
+        "canvas_footer_text": "Sampling with stride = 1",
+    },
 }
 
 
@@ -368,6 +411,7 @@ def generate_all_animations(
     name: Optional[str] = None,
     compile_pdf: bool = False,
     generate_gif_flag: bool = False,
+    canvas_footer_text: str = "",
 ) -> None:
     """批量生成纯时间序列动画。"""
     if name:
@@ -388,9 +432,13 @@ def generate_all_animations(
         kernel_size = cfg["kernel_size"]
         num_variables = cfg["num_variables"]
         stride = cfg["stride"]
+        # 优先使用函数参数传入的 footer 文本，否则退回到配置里的默认值
+        this_footer_text = canvas_footer_text or cfg.get("canvas_footer_text", "")
 
-        # 与 make_timeseries_tex_string 中的 pair_steps 保持一致
-        steps = (input_length - 2 * kernel_size) // stride + 1
+        # 与 make_timeseries_tex_string 中的 pair_steps 保持一致：
+        # X 覆盖 4 个格子，Y 覆盖 3 个格子，总长度为 2*kernel_size+1
+        pair_span = 2 * kernel_size + 1
+        steps = (input_length - pair_span) // stride + 1
 
         pdf_ok = 0
         for step in range(steps):
@@ -403,6 +451,7 @@ def generate_all_animations(
                     num_variables=num_variables,
                     stride=stride,
                     compile_pdf=compile_pdf,
+                    canvas_footer_text=this_footer_text,
                 ):
                     pdf_ok += 1
             except Exception as e:
@@ -454,6 +503,12 @@ def main() -> None:
         action="store_true",
         help="在已生成 pdf 的基础上输出 gif 动画",
     )
+    all_parser.add_argument(
+        "--footer-text",
+        type=str,
+        default="",
+        help="画布右下角的说明文字（可包含 LaTeX）",
+    )
 
     # 单帧生成
     ts_parser = subparsers.add_parser(
@@ -476,6 +531,12 @@ def main() -> None:
     ts_parser.add_argument(
         "--compile-pdf", action="store_true", help="编译 tex 为 pdf"
     )
+    ts_parser.add_argument(
+        "--footer-text",
+        type=str,
+        default="",
+        help="画布右下角的说明文字（可包含 LaTeX）",
+    )
 
     args = parser.parse_args()
 
@@ -484,6 +545,7 @@ def main() -> None:
             name=args.name,
             compile_pdf=getattr(args, "compile_pdf", False),
             generate_gif_flag=getattr(args, "generate_gif", False),
+            canvas_footer_text=getattr(args, "footer_text", ""),
         )
     else:
         # 单帧
@@ -495,6 +557,7 @@ def main() -> None:
             num_variables=args.num_variables,
             stride=args.stride,
             compile_pdf=args.compile_pdf,
+            canvas_footer_text=getattr(args, "footer_text", ""),
         )
         kind = "tex+pdf" if ok and args.compile_pdf else "tex"
         print(f"已生成 {kind}：tex/{args.name}_{args.step:02d}.tex")

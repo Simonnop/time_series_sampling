@@ -77,21 +77,21 @@
         % 输入网格线（1×1）
         \draw[step=1, base03, thin] (0,0) grid (18, 3);
         % X 窗口高亮（绿色，对应 X_i）
-        \draw[base03, ultra thick, fill=green!30, fill opacity=0.6] (2, 0) rectangle (6, 3);
-        \draw[step=1, base03, thick] (2, 0) grid (6, 3);
+        \draw[base03, ultra thick, fill=green!30, fill opacity=0.6] (4, 0) rectangle (8, 3);
+        \draw[step=1, base03, thick] (4, 0) grid (8, 3);
         % 保存 X 窗口四角坐标，用于与输出层连线
-        \coordinate (XWBL) at (2, 0);
-        \coordinate (XWBR) at (6, 0);
-        \coordinate (XWTL) at (2, 3);
-        \coordinate (XWTR) at (6, 3);
+        \coordinate (XWBL) at (4, 0);
+        \coordinate (XWBR) at (8, 0);
+        \coordinate (XWTL) at (4, 3);
+        \coordinate (XWTR) at (8, 3);
         % Y 窗口高亮（黄色，对应 Y_i）
-        \draw[base03, ultra thick, fill=yellow!40, fill opacity=0.6] (6, 0) rectangle (9, 3);
-        \draw[step=1, base03, thick] (6, 0) grid (9, 3);
+        \draw[base03, ultra thick, fill=yellow!40, fill opacity=0.6] (8, 0) rectangle (11, 3);
+        \draw[step=1, base03, thick] (8, 0) grid (11, 3);
         % 保存 Y 窗口四角坐标，用于与输出层连线
-        \coordinate (YWBL) at (6, 0);
-        \coordinate (YWBR) at (9, 0);
-        \coordinate (YWTL) at (6, 3);
-        \coordinate (YWTR) at (9, 3);
+        \coordinate (YWBL) at (8, 0);
+        \coordinate (YWBR) at (11, 0);
+        \coordinate (YWTL) at (8, 3);
+        \coordinate (YWTR) at (11, 3);
         % 输入层尺寸与轴标注：长为 T，宽为 D，V \in R^(T×D)，以及 v_t \in R^D
         % T 方向括号（沿时间轴，位于输入平面下方），
         % 文字放在括号中点附近，并向右上方微调以对齐视觉中心
@@ -144,6 +144,6 @@
     \end{scope}
     % 画布右下角的用户自定义文字
     % 使用锚点 south east，使文字的右下角贴近画布边缘
-    \node[anchor=south east] at (19.5,0.5) {Sampling with non-stride};
+    \node[anchor=south east] at (19.5,0.5) {Sampling with stride = 1};
 \end{tikzpicture}
 \end{document}

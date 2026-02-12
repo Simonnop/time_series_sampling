@@ -432,7 +432,7 @@ ANIMATIONS: Dict[str, Dict[str, any]] = {
     # 时间序列滑动窗口（带 stride）：stride=2
     'timeseries_sliding_window_strides': {
         'type': 'timeseries',
-        'input-size': 9,
+        'input-size': 18,
         'kernel-size': 3,
         'num-variables': 3,
         'padding': 0,

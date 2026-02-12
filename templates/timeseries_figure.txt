@@ -6,9 +6,12 @@
 \definecolor{{base03}}{{RGB}}{{0,43,54}}
 \definecolor{{base02}}{{RGB}}{{7,54,66}}
 \definecolor{{cyan}}{{RGB}}{{42,161,152}}
-\usetikzlibrary{{calc,shapes,positioning,decorations.pathreplacing}}
+\usetikzlibrary{{calc,shapes,positioning,decorations.pathreplacing,arrows.meta}}
 \begin{{document}}
 \begin{{tikzpicture}}[scale=.5, every node/.style={{minimum size=1cm}}, on grid]
+    % 固定画布大小（避免不同帧因标签/布局轻微变化导致整体尺寸抖动）
+    % 注意：这里使用一个略大于当前图形范围的包围盒
+    \path[use as bounding box] (-3,0) rectangle (20,13);
     % 变量颜色定义（每个变量一种颜色，全局供输入/输出层使用）
     {COLOR_DEFS}
     % 立体：输入平面（1×1 方格，与卷积相同的斜视）
@@ -35,22 +38,25 @@
         \coordinate (YWTL) at ({Y_WINDOW_FROM}, {NUM_VARIABLES});
         \coordinate (YWTR) at ({Y_WINDOW_TO}, {NUM_VARIABLES});
         % 输入层尺寸与轴标注：长为 T，宽为 D，V \in R^(T×D)，以及 v_t \in R^D
-        % T 方向括号（沿时间轴，位于输入平面下方）
+        % T 方向括号（沿时间轴，位于输入平面下方），
+        % 文字放在括号中点附近，并向右上方微调以对齐视觉中心
         \draw[decorate,decoration={{brace,mirror,amplitude=4pt}},base03,thick]
-            (0,-0.3) -- ({INPUT_LENGTH},-0.3);
-        \node[below=6pt] at ({T_LABEL_X}, {T_LABEL_Y}) {{$ T $}};
-        % D 方向括号（沿特征维度，位于输入平面左侧）
-        \draw[decorate,decoration={{brace,mirror,amplitude=4pt}},base03,thick]
-            (-0.3,0) -- (-0.3,{NUM_VARIABLES});
-        \node[left=6pt] at ({D_LABEL_X}, {D_LABEL_Y}) {{$ D $}};
+            (0,-0.3) -- node[midway, below=6pt, xshift=6pt, yshift=8pt] {{$ T $}} ({INPUT_LENGTH},-0.3);
+        % D 方向括号（沿特征维度，位于输入平面左侧），
+        % 文字放在括号中点附近，并向右下方微调以对齐视觉中心
+        \draw[decorate,decoration={{brace,amplitude=4pt}},base03,thick]
+            (-0.3,0) -- node[midway, left=6pt, xshift=6pt, yshift=-4pt] {{$ D $}} (-0.3,{NUM_VARIABLES});
         % 这里直接使用预先构造好的数学标签文本，避免在模板中出现未转义花括号
         \node[above right=4pt] at ({V_LABEL_X}, {V_LABEL_Y}) {{$ {V_LABEL_TEXT} $}};
         % 选取某一时刻的向量 v_t（D 维）
-        \draw[->, very thick, base03] ({VT_FROM_X}, {VT_FROM_Y}) -- ({VT_TO_X}, {VT_TO_Y});
+        % 用更粗的线条和明显的箭头头部强调 v_t
+        \draw[>=stealth, ->, line width=4.0pt, base03]
+            ({VT_FROM_X}, {VT_FROM_Y}) -- ({VT_TO_X}, {VT_TO_Y});
         \node[right=4pt] at ({VT_LABEL_X}, {VT_LABEL_Y}) {{$ {VT_LABEL_TEXT} $}};
     \end{{scope}}
     % 立体：输出层（长方形格子，变量数不变，上下同变量同色）
-    \begin{{scope}}[xshift=0, yshift={OUTPUT_ELEVATION},
+    % 整体相对于下方输入层在水平方向平移 OUTPUT_XSHIFT
+    \begin{{scope}}[xshift={OUTPUT_XSHIFT}, yshift={OUTPUT_ELEVATION},
                     every node/.append style={{yslant=0.5,xslant=-0.7}},
                     yslant=0.5,xslant=-0.7]
         % 输入窗口到输出单元的连线（输出层用长方形，高 OUTPUT_HEIGHT）
@@ -69,9 +75,19 @@
         \draw[xstep=1, ystep=1, base03, thick] (0,0) grid ({OUTPUT_LENGTH}, {OUTPUT_HEIGHT});
         \draw[base03, fill=base02, fill opacity=0.4] ({OUTPUT_HIGHLIGHT}, 0) rectangle ({OUTPUT_HIGHLIGHT_PLUS_1}, {OUTPUT_HEIGHT});
         \draw[base03, ultra thick] ({OUTPUT_HIGHLIGHT}, 0) rectangle ({OUTPUT_HIGHLIGHT_PLUS_1}, {OUTPUT_HEIGHT});
-        % 标签：每一帧标注 X_i 和 Y_i
-        \node[above=4pt] at ({LABEL_X_CENTER}, {OUTPUT_HEIGHT}) {{$ {X_LABEL} $}};
-        \node[above=4pt] at ({LABEL_Y_CENTER}, {OUTPUT_HEIGHT}) {{$ {Y_LABEL} $}};
+        % 顶部 L / H 括号
+        \draw[decorate,decoration={{brace,amplitude=4pt}},base03,thick]
+            ({OUTPUT_X_FROM}, {TOP_BRACE_Y}) -- ({OUTPUT_X_TO}, {TOP_BRACE_Y});
+        \node[above=4pt] at ({L_BRACE_X}, {TOP_BRACE_Y}) {{$ L $}};
+        \draw[decorate,decoration={{brace,amplitude=4pt}},base03,thick]
+            ({OUTPUT_Y_FROM}, {TOP_BRACE_Y}) -- ({OUTPUT_Y_TO}, {TOP_BRACE_Y});
+        \node[above=4pt] at ({H_BRACE_X}, {TOP_BRACE_Y}) {{$ H $}};
+        % 标签：每一帧标注 X_i 和 Y_i（分别在左/右侧，带白色背景防止与网格混淆）
+        \node[left=4pt, yshift=-4px, fill=white, inner sep=1.5pt]  at ({X_LABEL_X}, {X_LABEL_Y}) {{$ {X_LABEL} $}};
+        \node[right=4pt, yshift=4px, fill=white, inner sep=1.5pt] at ({Y_LABEL_X}, {Y_LABEL_Y}) {{$ {Y_LABEL} $}};
     \end{{scope}}
+    % 画布右下角的用户自定义文字
+    % 使用锚点 south east，使文字的右下角贴近画布边缘
+    \node[anchor=south east] at (19.5,0.5) {{{CANVAS_FOOTER_TEXT}}};
 \end{{tikzpicture}}
 \end{{document}}
