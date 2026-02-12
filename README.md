@@ -6,10 +6,18 @@ This repository contains **dynamical visualizations** of sliding-window sampling
 
 We provide two animated demonstrations (GIFs):
 
-| Visualization | Description |
+| Type | Description |
 |---------------|-------------|
-| **Non-stride sampling** (`gif/timeseries_sliding_window.gif`) | The window moves **one time step** at a time (stride = 0). Each frame shows one (X, Y) pair: X has length \(L\) (input context), Y has length \(H\) (target horizon), and they are adjacent along the time axis with no gap and no overlap. |
-| **Strided sampling** (`gif/timeseries_sliding_window_with_strides.gif`) | The window advances by **stride = 1** time steps. |
+| **Non-stride sampling** | The window moves **one time step** at a time (stride = 0). Each frame shows one (X, Y) pair: X has length \(L\) (input context), Y has length \(H\) (target horizon), and they are adjacent along the time axis with no gap and no overlap. |
+| **Strided sampling** | The window advances by **stride $\ge$ 1** time steps. This reduces the number of (X, Y) pairs. |
+
+### Non-stride sampling
+
+![Non-stride sliding window](gif/timeseries_sliding_window.gif)
+
+### Strided sampling
+
+![Strided sliding window](gif/timeseries_sliding_window_with_strides.gif)
 
 In both animations:
 - **X** and **Y** are highlighted in distinct colors to show the exact segments used as input and target for each pair.
